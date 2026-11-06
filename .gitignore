@@ -1,1 +1,4 @@
 *.parquet
+*.tfstate
+*.tfstate.*
+.terraform/

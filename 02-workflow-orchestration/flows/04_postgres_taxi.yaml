@@ -32,10 +32,10 @@ tasks:
   - id: set_label
     type: io.kestra.plugin.core.execution.Labels
     labels:
-      file: "{{render(vars.file)}}"
+      file: "{{render(vars.file)}}" #load the filepath before it's actually used. To avoid having the string with not transformed expressions
       taxi: "{{inputs.taxi}}"
 
-  - id: extract
+  - id: extract # ------E------
     type: io.kestra.plugin.scripts.shell.Commands
     outputFiles:
       - "*.csv"
@@ -44,7 +44,8 @@ tasks:
     commands:
       - wget -qO- https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{{inputs.taxi}}/{{render(vars.file)}}.gz | gunzip > {{render(vars.file)}}
 
-  - id: if_yellow_taxi
+    # ------L------
+  - id: if_yellow_taxi #green and yellow csv files don't have exactly the same columns, so we have to choose when inserting them into the final table
     type: io.kestra.plugin.core.flow.If
     condition: "{{inputs.taxi == 'yellow'}}"
     then:
@@ -100,6 +101,7 @@ tasks:
               congestion_surcharge   double precision
           );
 
+      # ------T------
       - id: yellow_truncate_staging_table
         type: io.kestra.plugin.jdbc.postgresql.Queries
         sql: |
@@ -149,7 +151,7 @@ tasks:
               S.improvement_surcharge, S.total_amount, S.congestion_surcharge
             );
 
-  - id: if_green_taxi
+  - id: if_green_taxi # ------L------
     type: io.kestra.plugin.core.flow.If
     condition: "{{inputs.taxi == 'green'}}"
     then:
@@ -209,7 +211,7 @@ tasks:
               congestion_surcharge   double precision
           );
 
-      - id: green_truncate_staging_table
+      - id: green_truncate_staging_table # ------T------
         type: io.kestra.plugin.jdbc.postgresql.Queries
         sql: |
           TRUNCATE TABLE {{render(vars.staging_table)}};

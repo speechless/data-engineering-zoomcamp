@@ -24,22 +24,94 @@ Le docker compose contient 4 instances :
 - Une DB Postgre contenant les données de Kestra
 - Une DB Postgre pour les données produites par la pipeline
 
-section 06: si on utilise des variables qui doivent charger des valeurs, une technique est de les appeler avant (comme dans un label) pour les charget et ne pas avoir la raw string
+**section 06**: si on utilise des variables qui doivent charger des valeurs, une technique est de les appeler avant (comme dans un label) pour les charget et ne pas avoir la raw string
 
 Kestra permet d'automatiser des tâches dont des manipulations de données, liens avec des DB, permet de les visualiser ou encore de les programmer.
-section 08 : backfills permet de simuler une exécution dans un intervalle donné dans le passé.
 
-section 9: ETL est un strandard dans l'industrie car ça fonctionne bien en général.
+**section 08**: backfills permet de simuler une exécution dans un intervalle donné dans le passé.
+
+**section 09**: ETL est un strandard dans l'industrie car ça fonctionne bien en général.
+
 ELT permet d'utiliser la puissance de calcul du Cloud plutôt que celle en local. 
+
 En pratique on envoie les données non structurées dans le DataLake (le Cloud dans notre cas) et on utilise ensuite BigQuery pour map ces données pour ensuite les structurer.
+
 Cela permet d'avoir des grosses transformations plus rapidement car BigQuery ne charge que les données dont on a besoin, pas toutes (pas tout le fichier .csv dans notre cas).
 
-section 10: Création des liens entre Kestra, BigQuery et GCP
+**section 10**: Création des liens entre Kestra, BigQuery et GCP
+
 Bien mettre les infos dans un .env et les importer depuis le docker-compose.yml
+
 Pour les utiliser depuis Kestra, créer un fichier avec comme préfix SECRET_ devant chaque clé et encoder les valeurs en base64. Passer ce fichier dans le docker 
 et il sera accessible depuis Kestra avec `secret("Nom_Du_Secret_Sans_Prefix")`
 
-section 12: Avec le dataset des taxis, sur 3 mois, on arrive déjà à plus de 22M de lignes. D'où l'utilité d'utiliser parfois le cloud plutôt qu'un pauvre PC/serveur local à la longue.
+**section 12**: Avec le dataset des taxis, sur 3 mois, on arrive déjà à plus de 22M de lignes. D'où l'utilité d'utiliser parfois le cloud plutôt qu'un pauvre PC/serveur local à la longue.
 
-section 16: on peut ajouter Gemini, faire des RAG simples, etc.
+**section 16**: on peut ajouter Gemini, faire des RAG simples, etc.
+
+# Partie 3 - Data Warehouse & BigQuery
+OLTP : Orienté transactions, BDD classiques. Utilisation souvent historique des données.
+OLAP : BDD non normalisées et orientées pour l'analyse de donnée, souvent très lentes à update. Utilisation avec de larges datasets. OLAP se base souvent sur du OLTP pour se remplir.
+
+Data warehouse contient en général des données brutes, des méta data mais aussi des données récapitulatives de différentes sources de données.
+
+Option dans BigQuery pour activer ou désactiver l'utilisation du cache à considérer. (Actif par défaut).
+
+Utilisation Flat rate ou On demand (à favoriser). En fonction de si on veut on ou un espace de données fixe ou en fonction de notre utilisation. Pas du tout le même prix.
+
+BigQuery permet d'importer des fichiers de différents formats (comme .csv) et créé automatiquement la table avec les bons types de valeurs sans importer le schema.
+
+## Partitions
+On peut partitioner nos données (par date par exemple) pour réduire le temps de calcul des requêtes. Cela évite de process des données si on sait qu'elles ne sont pas pertinentes (l'exemple donne ~10 fois moins de données traitées). Le logo est pas le même entre une partition est une table sur le UI de BigQuery.
+
+``... PARTITION BY <la donnée sur laquelle on veut trier> AS SELECT <... nos données>``
+
+On peut voir les partitions des tables avec `.INFORMATION_SCHEMA.PARTITIONS`
+
+On peut faire des _PARTITIONTIME pour fractionnée les partitions en fonction d'une durée.
+
+Que ça soit avec des _PARTITIONTIME ou des données avec des Time unit, en général on partitionne par **jour**. 
+Si on en a besoin et énormément de données, on peut partitionner par **heures**.
+
+Si on a vraiment peu de données, on peut faire par **mois** ou par **années**.
+
+Le nombre de partitions est limité à 4000.
+
+Si le résultat des partitionnements donne des résultats < 1Gb ou trop de partitions ou que trop de modifications de partitions sont nécéssaires quand on les modifies (paritions pas optimisées), le Clustering peut être + intéressant.
+
+## Clusters
+`... CLUSTER BY <la donnée sur laquelle on veut trier> AS ...`
+
+Comme un GROUP BY. Jusqu'à 4 colonnes.
+
+L'ordre de la colonne est super important pour trier efficacement.
+
+Sauve encore un peu de quantité de données utilisées. (utile si data > 1 GB).
+
+Automatic reclustering est fait pour quand une donnée est ajoutée, elle s'adapte aux clusters existants.
+
+## Bonnes pratiques
+- Ne pas faire de `SELECT *`
+- Réfléchir et quantifier les requêtes avant de les run.
+- Utiliser des Cluster et des Partitions et filtrer dessus.
+- Faire attention aux insertions automatiques.
+- Stocker des données intermédiaires souvent utilisées dans des tables.
+
+
+Pour gagner encore du temps :
+- Dénormaliser les données (contrairement à d'habitudes) et mettre plus de données dans une même table.
+- Filter first, JOIN after. Optimiser les JOIN
+- `WITH` est une subquery, pas une clause. Faire attention car ça prend beaucoup plus de temps.
+- Éviter le Javascript (UDF)
+- `ORDER` doit être utilisé à la toute fin d'une requête.
+
+## Structure de BigQuery
+Les données sont stockées par colonne individuellement. (Column-oriented) Ce qui explique pourquoi les ``SELECT *`` sont si contraingnants.
+
+La capacité de calcul et les données sont stockés dans 2 hardwares différents. 
+Pour que cela n'affecte pas le temps de calcul final, le réseau qui communique entre les 2 à une bande passante d'environ 1TB/s.
+
+La requête est ensuite envoyé à un serveur qui la sous-divise parmis les serveurs.
+
+## Machine Learning
 

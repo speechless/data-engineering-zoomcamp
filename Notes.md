@@ -113,5 +113,13 @@ Pour que cela n'affecte pas le temps de calcul final, le réseau qui communique 
 
 La requête est ensuite envoyé à un serveur qui la sous-divise parmis les serveurs.
 
-## Machine Learning
+## Machine Learning dans BigQuery
+Il est également possible de faire du ML dans BigQuery. Cela a l'air plutôt rudimentaire mais cela peut être tuner.
 
+On peut utiliser pas mal de modèles très simples avec des presets tout faits ou plus complexes avec des paramètres avec lesquels on peut jouer.
+
+Les avantages principaux de le faire depuis BigQuery sont :
+- La puissance de calcul des infras Google
+- Pas besoin d'exporter la donnée, le modèle s'intègre où elle est.
+
+Après on peut exporter notre modèle évidement.

@@ -50,6 +50,8 @@ et il sera accessible depuis Kestra avec `secret("Nom_Du_Secret_Sans_Prefix")`
 **section 16**: on peut ajouter Gemini, faire des RAG simples, etc.
 
 # Partie 3 - Data Warehouse & BigQuery
+(pas de fichiers à mettre dans le repo, tout se passe sur BigQuery et GCP directement)
+
 OLTP : Orienté transactions, BDD classiques. Utilisation souvent historique des données.
 OLAP : BDD non normalisées et orientées pour l'analyse de donnée, souvent très lentes à update. Utilisation avec de larges datasets. OLAP se base souvent sur du OLTP pour se remplir.
 
@@ -123,3 +125,50 @@ Les avantages principaux de le faire depuis BigQuery sont :
 - Pas besoin d'exporter la donnée, le modèle s'intègre où elle est.
 
 Après on peut exporter notre modèle évidement.
+
+## Partie 4 : Analytics Engineering
+Lien entre Data Engineer et Data Analyst.
+Le but est de rendre disponible les données vraiment utiles pour les analyses.
+
+dbt existe en 2 utilisations : dbt Core (une solution open-source, en cli) et dbt Cloud (en SaaS et payant)
+
+### Structure d'un projet dbt
+Voici une structure appréciée pour ordonner le dossier du projet dbt
+
+#### dbt_project.yml
+- Donne les valeurs par défaut à dbt
+- Indispensable pour run les commandes dbt
+- Doit avoir le même profile que dans .dbt/profiles.yml
+
+#### macros
+- Logique réutilisable comme des fonctions Python
+- Encapsule des logiques au même endroits
+
+#### seeds
+- Dossier où upload des fichiers sources (csv ou autres) pour les ajouter à dbt plus tard
+- De préférence à ne pas utiliser. Problème à fix à la source
+
+
+#### tests
+- Tests d'assertions en SQL
+- Tests unitaires
+- Si une commande SQL retounrne plus de 0 lignes, le build dbt fail
+
+#### snapshot
+- Sauvegarde (image, snapshot quoi) de tables à un moment donné
+- Bien pour retracer l'historique de colonnes (qui s'overwrite elles-mêmes par exemple)
+
+#### models
+
+##### staging
+- Sources (raw tables depuis la BDD)
+- Résultats de filtres simples comme des rename de colonnes ou des changements de types
+
+##### intermediate
+- Tout ce qui n'est pas brut et que ne doit pas être exposé au public
+- Nettoyages importants ou logique complexe
+
+##### marts
+- Prêt pour être utiliser par les utilisateurs, pour des dashboards
+- Nettoyé et correctement modélisé
+
